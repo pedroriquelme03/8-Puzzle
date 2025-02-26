@@ -1,5 +1,7 @@
 import time
 import heapq
+import tkinter as tk
+from tkinter import filedialog
 from collections import deque
 import tracemalloc
 
@@ -70,37 +72,65 @@ def reconstruct_path(state):
         state = state.parent
     return path[::-1]
 
-# Função para exibir o tabuleiro no terminal
-def print_board(state, size):
-    for i in range(size):
-        print(" ".join(state.board[i * size:(i + 1) * size]))
-    print("-" * (size * 2))
+# Interface gráfica
+class PuzzleGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("8-Puzzle Solver")
+        self.board = []
+        self.buttons = []
+        self.size = 3
+        self.load_button = tk.Button(root, text="Carregar Arquivo", command=self.load_puzzle)
+        self.load_button.pack()
+        self.solve_button = tk.Button(root, text="Resolver", command=self.solve_puzzle, state=tk.DISABLED)
+        self.solve_button.pack()
+        self.frame = tk.Frame(root)
+        self.frame.pack()
+        
+    def load_puzzle(self):
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
+        
+        with open(file_path, 'r') as file:
+            self.board = file.readline().strip().split()
+        
+        self.size = int(len(self.board) ** 0.5)
+        self.create_board()
+        self.solve_button.config(state=tk.NORMAL)
+    
+    def create_board(self):
+        for widget in self.frame.winfo_children():
+            widget.destroy()
+        
+        self.buttons = []
+        for i in range(self.size):
+            row = []
+            for j in range(self.size):
+                text = self.board[i * self.size + j]
+                btn = tk.Button(self.frame, text=text, font=("Arial", 18), width=4, height=2)
+                btn.grid(row=i, column=j)
+                row.append(btn)
+            self.buttons.append(row)
+    
+    def update_board(self, board):
+        for i in range(self.size):
+            for j in range(self.size):
+                self.buttons[i][j].config(text=board[i * self.size + j])
+        self.root.update()
+        time.sleep(0.5)
+    
+    def solve_puzzle(self):
+        initial_state = PuzzleState(self.board)
+        goal = [str(i) for i in range(1, self.size * self.size)] + ['X']
+        solution, _, _, _ = a_star(initial_state, goal, self.size)
+        
+        if solution:
+            path = reconstruct_path(solution)
+            for state in path:
+                self.update_board(state.board)
 
-# Função principal
-def solve_puzzle(filename):
-    with open(filename, 'r') as file:
-        board = file.readline().strip().split()
-
-    size = int(len(board) ** 0.5)
-    goal = [str(i) for i in range(1, size * size)] + ['X']
-    initial_state = PuzzleState(board)
-
-    print("🔍 Resolvendo o 8-Puzzle com A*...\n")
-
-    solution, nodes, elapsed_time, memory_used = a_star(initial_state, goal, size)
-
-    if solution:
-        path = reconstruct_path(solution)
-        for state in path:
-            print_board(state, size)
-            time.sleep(0.5)  # Adiciona um pequeno delay para visualizar a solução passo a passo
-
-        print(f"\n✅ Solução encontrada!\nNós visitados: {nodes}")
-        print(f"Tempo de execução: {elapsed_time:.4f}s")
-        print(f"Memória utilizada: {memory_used / 1024:.2f} KB")
-
-    else:
-        print("❌ Nenhuma solução encontrada.")
-
-# Executar a solução com um arquivo de entrada
-solve_puzzle("input.txt")
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PuzzleGUI(root)
+    root.mainloop()
