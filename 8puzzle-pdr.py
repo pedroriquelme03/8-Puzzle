@@ -1,7 +1,6 @@
 import time
 import heapq
 import tkinter as tk
-from tkinter import filedialog
 from collections import deque
 import tracemalloc
 
@@ -39,7 +38,7 @@ def heuristic(state, goal):
     return sum(1 for i in range(len(state.board)) if state.board[i] != goal[i] and state.board[i] != 'X')
 
 # Busca A* (A estrela)
-def a_star(initial, goal, size):
+def a_star(initial, goal, size, log_callback):
     start_time = time.time()
     tracemalloc.start()
     pq = []
@@ -61,6 +60,8 @@ def a_star(initial, goal, size):
             if tuple(move.board) not in visited:
                 move.cost = heuristic(move, goal)
                 heapq.heappush(pq, (move.depth + move.cost, move))
+        
+        log_callback(f"Nó visitado: {nodes_visited}, Profundidade: {state.depth}")
 
     return None, nodes_visited, time.time() - start_time, tracemalloc.get_traced_memory()[1]
 
@@ -77,28 +78,31 @@ class PuzzleGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("8-Puzzle Solver")
+        self.root.geometry("500x500")  # Definir tamanho fixo da janela
+        
+        # Criando o frame do tabuleiro
+        self.frame = tk.Frame(root, width=250, height=250)
+        self.frame.grid(row=0, column=0, padx=10, pady=10)
+
+        # Criando a área de logs ao lado do tabuleiro
+        self.log_text = tk.Text(root, height=20, width=30)
+        self.log_text.grid(row=0, column=1, padx=10, pady=10)
+
         self.board = []
         self.buttons = []
         self.size = 3
-        self.load_button = tk.Button(root, text="Carregar Arquivo", command=self.load_puzzle)
-        self.load_button.pack()
-        self.solve_button = tk.Button(root, text="Resolver", command=self.solve_puzzle, state=tk.DISABLED)
-        self.solve_button.pack()
-        self.frame = tk.Frame(root)
-        self.frame.pack()
+        self.load_puzzle()
         
+        self.solve_button = tk.Button(root, text="Resolver", command=self.solve_puzzle)
+        self.solve_button.grid(row=1, column=0, pady=10)
+
     def load_puzzle(self):
-        file_path = filedialog.askopenfilename()
-        if not file_path:
-            return
-        
-        with open(file_path, 'r') as file:
+        with open("input.txt", 'r') as file:
             self.board = file.readline().strip().split()
         
         self.size = int(len(self.board) ** 0.5)
         self.create_board()
-        self.solve_button.config(state=tk.NORMAL)
-    
+
     def create_board(self):
         for widget in self.frame.winfo_children():
             widget.destroy()
@@ -112,23 +116,34 @@ class PuzzleGUI:
                 btn.grid(row=i, column=j)
                 row.append(btn)
             self.buttons.append(row)
-    
+
     def update_board(self, board):
         for i in range(self.size):
             for j in range(self.size):
                 self.buttons[i][j].config(text=board[i * self.size + j])
         self.root.update()
         time.sleep(0.5)
-    
+
+    def log(self, message):
+        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.yview(tk.END)  # Rola automaticamente para a última linha
+
     def solve_puzzle(self):
         initial_state = PuzzleState(self.board)
         goal = [str(i) for i in range(1, self.size * self.size)] + ['X']
-        solution, _, _, _ = a_star(initial_state, goal, self.size)
-        
+        self.log("🔍 Resolvendo com A*...")
+
+        solution, nodes, elapsed_time, memory_used = a_star(initial_state, goal, self.size, self.log)
+
         if solution:
             path = reconstruct_path(solution)
             for state in path:
                 self.update_board(state.board)
+            self.log(f"\n✅ Solução encontrada!\nNós visitados: {nodes}")
+            self.log(f"Tempo de execução: {elapsed_time:.4f}s")
+            self.log(f"Memória utilizada: {memory_used / 1024:.2f} KB")
+        else:
+            self.log("❌ Nenhuma solução encontrada.")
 
 if __name__ == "__main__":
     root = tk.Tk()
