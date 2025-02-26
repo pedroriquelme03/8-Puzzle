@@ -131,7 +131,7 @@ class PuzzleGUI:
     def solve_puzzle(self):
         initial_state = PuzzleState(self.board)
         goal = [str(i) for i in range(1, self.size * self.size)] + ['X']
-        self.log("🔍 Resolvendo com Largura...")
+        self.log("🔍 Resolvendo com Profundidade...")
 
         solution, nodes, elapsed_time, memory_used = dfs(initial_state, goal, self.size, self.log)
 
